@@ -8,18 +8,18 @@
 import Foundation
 
 /// Singleton class to track and manage notification subscribers
-/// Used to prevent memory leaks and check for active subscriptions
+/// Ensures thread-safe operations and prevents memory leaks by tracking active subscriptions
 public class NotificationObserverTracker {
     public static let shared = NotificationObserverTracker()
 
-    /// Dictionary storing sets of subscriber UUIDs for each notification name
-    var dict: [Notification.Name: Set<UUID>] = [:]
-    let lock = NSLock()
+    /// Stores sets of subscriber UUIDs for each notification name
+    private var dict: [Notification.Name: Set<UUID>] = [:]
+    private let lock = NSLock()
 
-    /// Method to remove a specific subscription
+    /// Removes a specific subscription for a given notification name
     /// - Parameters:
     ///   - uuid: Unique identifier of the subscriber to remove
-    ///   - name: Notification name
+    ///   - name: Notification name associated with the subscription
     func removeSubscription(id uuid: UUID, for name: Notification.Name) {
         lock.lock()
         defer { lock.unlock() }
@@ -27,15 +27,18 @@ public class NotificationObserverTracker {
         guard var set = dict[name] else { return }
 
         set.remove(uuid)
-        // If all subscribers are removed, delete the key from the dictionary
-        if set.isEmpty { dict.removeValue(forKey: name) }
-        else { dict[name] = set }
+        // Remove the notification name if no subscribers remain
+        if set.isEmpty {
+            dict.removeValue(forKey: name)
+        } else {
+            dict[name] = set
+        }
     }
 
-    /// Method to add a new subscription
+    /// Adds a new subscription for a given notification name
     /// - Parameters:
     ///   - uuid: Unique identifier of the subscriber to add
-    ///   - name: Notification name
+    ///   - name: Notification name associated with the subscription
     func addSubscription(id uuid: UUID, for name: Notification.Name) {
         lock.lock()
         defer { lock.unlock() }
@@ -48,9 +51,9 @@ public class NotificationObserverTracker {
         }
     }
 
-    /// Check if there are active subscriptions for a specific notification
+    /// Checks if there are active subscriptions for a specific notification name
     /// - Parameter name: Notification name to check
-    /// - Returns: Whether there are active subscriptions
+    /// - Returns: `true` if there are active subscriptions, otherwise `false`
     public func hasActiveSubscription(for name: Notification.Name) -> Bool {
         dict[name]?.isEmpty == false
     }
